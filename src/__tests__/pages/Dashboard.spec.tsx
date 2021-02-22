@@ -219,10 +219,10 @@ describe('Dashboard', () => {
 
     apiMock.onGet('/foods').reply(config => {
       switch (config.params.category_like) {
-        case 1:
+        case '1':
           return [200, categoryOneItems];
 
-        case 2:
+        case '2':
           return [200, categoryTwoItems];
 
         default:
@@ -253,13 +253,10 @@ describe('Dashboard', () => {
 
     expect(getByText('Ao molho')).toBeTruthy();
 
-    expect(queryByText('Veggie')).toBeFalsy();
-
     await act(async () => {
       fireEvent.press(getByTestId('category-2'));
     });
 
-    expect(queryByText('Ao molho')).toBeFalsy();
     expect(getByText('Veggie')).toBeTruthy();
 
     await act(async () => {

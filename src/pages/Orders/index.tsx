@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 
-import api from '../../services/api';
+import api, { fetchOrders } from '../../services/api';
 import formatValue from '../../utils/formatValue';
 
 import {
@@ -31,11 +31,7 @@ const Orders: React.FC = () => {
   const [orders, setOrders] = useState<Food[]>([]);
 
   useEffect(() => {
-    async function loadOrders(): Promise<void> {
-      // Load orders from API
-    }
-
-    loadOrders();
+    fetchOrders().then(data => setOrders(data));
   }, []);
 
   return (

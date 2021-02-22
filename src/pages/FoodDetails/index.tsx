@@ -12,7 +12,13 @@ import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import formatValue from '../../utils/formatValue';
 
-import api from '../../services/api';
+import {
+  fetchFood,
+  getFavorite,
+  postFavorite,
+  deleteFavorite,
+  postOrder,
+} from '../../services/api';
 
 import {
   Container,
@@ -50,64 +56,139 @@ interface Extra {
   quantity: number;
 }
 
-interface Food {
+export interface Food {
   id: number;
   name: string;
   description: string;
-  price: number;
+  price: string;
   image_url: string;
   formattedPrice: string;
   extras: Extra[];
+  category: number;
+  thumbnail_url: string;
 }
 
 const FoodDetails: React.FC = () => {
   const [food, setFood] = useState({} as Food);
   const [extras, setExtras] = useState<Extra[]>([]);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [foodQuantity, setFoodQuantity] = useState(1);
 
   const navigation = useNavigation();
   const route = useRoute();
 
-  const routeParams = route.params as Params;
+  const { id } = route.params as Params;
+
+  const [isFavorite, setIsFavorite] = useState<boolean>();
 
   useEffect(() => {
-    async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
+    getFavorite(id).then(data => setIsFavorite(Boolean(data)));
+  }, [id]);
+
+  useEffect(() => {
+    fetchFood(id).then(data => {
+      setFood(data);
+
+      setExtras(
+        data.extras.map((extra: Extra) => ({
+          ...extra,
+          quantity: 0,
+        })),
+      );
+    });
+  }, [id]);
+
+  useEffect(() => {
+    if (!isFavorite) {
+      deleteFavorite(food.id);
+
+      return;
     }
 
-    loadFood();
-  }, [routeParams]);
+    postFavorite(food);
+  }, [food, isFavorite]);
 
-  function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+  function handleIncrementExtra(extraId: number): void {
+    setExtras(prev =>
+      prev.map(extra => {
+        const isExtra = extra.id === extraId;
+
+        if (isExtra) {
+          return {
+            ...extra,
+            quantity: extra.quantity + 1,
+          };
+        }
+
+        return extra;
+      }),
+    );
   }
 
-  function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+  function handleDecrementExtra(extraId: number): void {
+    setExtras(prev =>
+      prev.map(extra => {
+        const isExtra = extra.id === extraId;
+
+        if (isExtra) {
+          return {
+            ...extra,
+            quantity: Math.max(extra.quantity - 1, 0),
+          };
+        }
+
+        return extra;
+      }),
+    );
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    setFoodQuantity(prev => prev + 1);
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    setFoodQuantity(prev => Math.max(prev - 1, 1));
   }
 
   const toggleFavorite = useCallback(() => {
-    // Toggle if food is favorite or not
-  }, [isFavorite, food]);
+    setIsFavorite(prev => !prev);
+  }, []);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const foodPrice = parseFloat(food.price);
+
+    const extrasPrice = extras.reduce(
+      (acc, extra) => (acc + extra.value) * extra.quantity,
+      0,
+    );
+
+    return (foodPrice + extrasPrice) * foodQuantity;
   }, [extras, food, foodQuantity]);
 
+  const formattedCartTotal = formatValue(cartTotal);
+
   async function handleFinishOrder(): Promise<void> {
-    // Finish the order and save on the API
+    const {
+      id: product_id,
+      name,
+      description,
+      price,
+      category,
+      thumbnail_url,
+    } = food;
+
+    const order = {
+      product_id,
+      name,
+      description,
+      price,
+      category,
+      thumbnail_url,
+      extras,
+    };
+
+    postOrder(order).then(() => navigation.navigate('DashboardStack'));
   }
 
-  // Calculate the correct icon name
   const favoriteIconName = useMemo(
     () => (isFavorite ? 'favorite' : 'favorite-border'),
     [isFavorite],
@@ -179,7 +260,7 @@ const FoodDetails: React.FC = () => {
         <TotalContainer>
           <Title>Total do pedido</Title>
           <PriceButtonContainer>
-            <TotalPrice testID="cart-total">{cartTotal}</TotalPrice>
+            <TotalPrice testID="cart-total">{formattedCartTotal}</TotalPrice>
             <QuantityContainer>
               <Icon
                 size={15}
